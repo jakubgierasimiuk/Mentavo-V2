@@ -20,6 +20,8 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { ExampleQuestions } from '@/components/chat/ExampleQuestions';
 import { DiagnosticChoices } from '@/components/chat/DiagnosticChoices';
 import { TipsPanel } from '@/components/chat/TipsPanel';
+import { ChatAvatar } from '@/components/ChatAvatar';
+import { TypingIndicator } from '@/components/TypingIndicator';
 import { MarkdownMath } from '@/components/MarkdownMath';
 interface DiagnosticChoice {
   label: string;
@@ -669,7 +671,7 @@ export const AIChat = () => {
         
         {/* Messages Container */}
         <div ref={scrollAreaRef} className="flex-1 overflow-y-auto scroll-smooth pb-[200px] md:pb-6">
-          <div className="space-y-4 md:space-y-6">
+          <div className="space-y-6">
             {messages.map((message, index) => {
             const prevMessage = messages[index - 1];
             const showTimestamp = !prevMessage || new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime() > 300000; // 5 minutes
@@ -684,9 +686,12 @@ export const AIChat = () => {
                       </span>
                     </div>}
                   
-                  <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`${message.role === 'user' ? 'max-w-[90%] md:max-w-[85%] text-right' : 'w-full md:max-w-[85%] text-left'}`}>
-                         <div className={`${message.role === 'user' ? 'inline-block ml-auto bg-primary text-primary-foreground' : 'block w-full bg-muted/50 border border-border/50'} px-3 md:px-4 py-2 md:py-3 rounded-2xl`}>
+                  <div className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {message.role === 'assistant' && (
+                      <ChatAvatar type="assistant" />
+                    )}
+                    <div className={`${message.role === 'user' ? 'max-w-[85%]' : 'max-w-[85%]'}`}>
+                         <div className={`${message.role === 'user' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted shadow-sm'} px-4 py-3 rounded-2xl`}>
                           <MarkdownMath content={message.content} />
                          
                          {/* Example Questions for welcome message */}
@@ -712,19 +717,17 @@ export const AIChat = () => {
                          )}
                        </div>
                     </div>
+                    {message.role === 'user' && (
+                      <ChatAvatar type="user" userName={user?.user_metadata?.name || user?.email} />
+                    )}
                   </div>
                 </div>;
           })}
             
-            {isLoading && <div className="flex justify-start">
-                <div className="w-full md:max-w-[85%]">
-                  <div className="block w-full bg-muted/50 border border-border/50 px-4 py-3 rounded-2xl">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-pulse"></div>
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-pulse delay-75"></div>
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-pulse delay-150"></div>
-                    </div>
-                  </div>
+            {isLoading && <div className="flex gap-2 justify-start">
+                <ChatAvatar type="assistant" />
+                <div className="max-w-[85%]">
+                  <TypingIndicator />
                 </div>
               </div>}
             
@@ -794,10 +797,10 @@ export const AIChat = () => {
           ) : (
             // Normal input area when tokens available
             <>
-              <div className="mb-3">
-                <MathSymbolPanel quickSymbols={contextualSymbols.length > 0 ? contextualSymbols : quickSymbols} onSymbolSelect={handleSymbolSelect} />
-              </div>
-              <div className="flex items-end gap-2 md:gap-3 p-2 md:p-3 bg-muted/30 border-2 border-border/50 focus-within:border-primary/50 rounded-2xl transition-colors">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-full transition-all focus-within:bg-muted/70">
+                <div className="flex-shrink-0">
+                  <MathSymbolPanel quickSymbols={contextualSymbols.length > 0 ? contextualSymbols : quickSymbols} onSymbolSelect={handleSymbolSelect} className="inline-block" />
+                </div>
                 <Input 
                   type="text" 
                   placeholder={t.chatPlaceholder} 
@@ -810,13 +813,13 @@ export const AIChat = () => {
                 <Button 
                   onClick={sendMessage} 
                   disabled={isLoading || !input.trim()} 
-                  size="sm" 
-                  className="h-9 w-9 md:h-10 md:w-10 p-0 rounded-xl flex-shrink-0"
+                  size="lg" 
+                  className="h-12 w-12 p-0 rounded-full flex-shrink-0 shadow-md"
                 >
                   {isLoading ? (
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <Send className="w-4 h-4" />
+                    <Send className="w-5 h-5" />
                   )}
                 </Button>
               </div>

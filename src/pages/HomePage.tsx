@@ -4,6 +4,9 @@ import { Seo } from "@/components/Seo";
 import { ProgressMiniBar } from "@/components/ProgressMiniBar";
 import { Hero } from "@/components/Hero";
 import { Features } from "@/components/Features";
+import { QuickAccessCard } from "@/components/QuickAccessCard";
+import { WeeklyStreak } from "@/components/WeeklyStreak";
+import { BookOpen, Trophy, MessageCircle } from "lucide-react";
 import { ReferralPromo } from "@/components/ReferralPromo";
 import { Navigation } from "@/components/Navigation";
 
@@ -134,30 +137,70 @@ const HomePage = () => {
       />
       <div className="font-sans text-foreground bg-background overflow-hidden min-h-screen">
         <Navigation />
-        {/* Enhanced Hero Section for Authenticated Users */}
-        <section className="relative py-16 px-6 overflow-hidden">
-          {/* Animated background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-glow to-accent opacity-10">
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent"></div>
-          </div>
-          
-          {/* Floating geometric shapes */}
-          <div className="absolute top-10 left-10 w-16 h-16 bg-primary/10 rounded-full animate-float"></div>
-          <div className="absolute top-20 right-20 w-12 h-12 bg-accent/10 rounded-lg rotate-45 animate-float" style={{animationDelay: '2s'}}></div>
-          <div className="absolute bottom-10 left-1/4 w-8 h-8 bg-success/10 rounded-full animate-float" style={{animationDelay: '4s'}}></div>
-          
-          <div className="relative z-10 max-w-6xl mx-auto">
-            <Hero />
+        {/* Simplified Hero Section for Authenticated Users */}
+        <section className="relative py-12 px-6">
+          <div className="max-w-6xl mx-auto text-center">
+            <h1 className="text-4xl font-bold mb-2">
+              Witaj z powrotem, {user?.user_metadata?.name || 'Uczniu'}!
+            </h1>
+            <p className="text-xl text-muted-foreground">Gotowy na kolejną lekcję?</p>
           </div>
         </section>
 
-
-        {/* Enhanced Progress Section */}
-        <section className="relative py-8 px-6 bg-gradient-to-r from-background via-primary/5 to-background">
+        {/* Quick Access Section */}
+        <section className="relative py-8 px-6">
           <div className="max-w-6xl mx-auto">
-            <ProgressMiniBar />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <QuickAccessCard
+                icon={BookOpen}
+                iconColor="text-blue-600"
+                title="Kontynuuj naukę"
+                subtitle="Równania kwadratowe - Lekcja 3"
+                progress={65}
+                buttonText="Kontynuuj"
+                buttonLink="/study"
+              />
+              
+              <QuickAccessCard
+                icon={Trophy}
+                iconColor="text-orange-600"
+                title="Twój postęp"
+                stats={[
+                  { label: 'Lekcji ukończonych', value: '12' },
+                  { label: 'Punktów', value: '850' }
+                ]}
+                buttonText="Zobacz szczegóły"
+                buttonLink="/progress"
+              />
+              
+              <QuickAccessCard
+                icon={MessageCircle}
+                iconColor="text-primary"
+                title="Zapytaj AI"
+                subtitle="Masz pytanie? Jestem tu dla Ciebie 24/7"
+                buttonText="Rozpocznij rozmowę"
+                buttonLink="/chat"
+                highlighted
+              />
+            </div>
+            
+            <WeeklyStreak
+              weekData={[
+                { day: 'Pon', active: true },
+                { day: 'Wt', active: true },
+                { day: 'Śr', active: true },
+                { day: 'Czw', active: false },
+                { day: 'Pt', active: false },
+                { day: 'Sob', active: false },
+                { day: 'Nd', active: false }
+              ]}
+              currentStreak={5}
+            />
           </div>
         </section>
+
+
+
 
         {/* Features Section with Modern Layout */}
         <section className="relative py-16 px-6">
