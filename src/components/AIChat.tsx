@@ -23,6 +23,7 @@ import { TipsPanel } from '@/components/chat/TipsPanel';
 import { ChatAvatar } from '@/components/ChatAvatar';
 import { TypingIndicator } from '@/components/TypingIndicator';
 import { MarkdownMath } from '@/components/MarkdownMath';
+import { getMockAIResponse, resetMockAI } from '@/services/mockAI';
 interface DiagnosticChoice {
   label: string;
   value: string;
@@ -70,6 +71,9 @@ export const AIChat = () => {
 
   const [enrichedContext, setEnrichedContext] = useState(false);
   const [hasShownTokenExhaustedMessage, setHasShownTokenExhaustedMessage] = useState(false);
+  
+  // TEST MODE - allows testing without Supabase backend
+  const [testMode, setTestMode] = useState(false);
 
   // CLARIFICATION CONTEXT STATE
   const [clarificationContext, setClarificationContext] = useState<{
@@ -323,6 +327,31 @@ export const AIChat = () => {
     setInput('');
     setIsLoading(true);
     userMessageTime = Date.now();
+    
+    // TEST MODE: Use mock AI instead of Supabase
+    if (testMode) {
+      try {
+        const mockResponse = await getMockAIResponse(userInput);
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: mockResponse,
+          role: 'assistant',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      } catch (error) {
+        console.error('Mock AI error:', error);
+        toast({
+          title: "Błąd",
+          description: "Problem z trybem testowym",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
     try {
       let skill_id: string | null = null;
       let skill_name: string | null = null;
@@ -655,6 +684,34 @@ export const AIChat = () => {
       
       {/* Main Chat Area */}
       <div className="flex-1 w-full max-w-full md:max-w-4xl md:mx-auto md:px-4 py-2 md:py-6 flex flex-col">
+        {/* Test Mode Toggle */}
+        <div className="mb-3 flex items-center justify-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+          <Label htmlFor="test-mode" className="text-sm font-medium text-amber-800 cursor-pointer">
+            🧪 Tryb Testowy (bez backendu)
+          </Label>
+          <Switch 
+            id="test-mode"
+            checked={testMode}
+            onCheckedChange={(checked) => {
+              setTestMode(checked);
+              if (checked) {
+                resetMockAI();
+                toast({
+                  title: "Tryb testowy włączony",
+                  description: "Teraz używasz symulowanych odpowiedzi AI. Nie potrzebujesz Supabase!",
+                  duration: 3000
+                });
+              } else {
+                toast({
+                  title: "Tryb testowy wyłączony",
+                  description: "Teraz używasz prawdziwego AI (wymaga Supabase).",
+                  duration: 3000
+                });
+              }
+            }}
+          />
+        </div>
+        
         {/* Token Usage & Upgrade Prompts */}
         <div className="mb-4 space-y-2">
           <UpgradePrompts context="chat" compact />

@@ -622,7 +622,7 @@ async function handleTutor(req: Request): Promise<Response> {
         Authorization: `Bearer ${openAiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini',
         messages: [
           { role: 'system', content: 'You are a helpful math tutor. Follow the guidelines exactly as provided.' },
           { role: 'user', content: prompt }
@@ -876,7 +876,7 @@ Odpowiadaj po polsku i bądź zachęcający!`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini',
         messages: conversationMessages,
         max_completion_tokens: 2000,
       }),
@@ -1389,7 +1389,7 @@ async function handleChat(req: Request): Promise<Response> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini',
         messages: conversationMessages,
         max_completion_tokens: 2000,
       }),
@@ -1448,7 +1448,7 @@ async function handleChat(req: Request): Promise<Response> {
       {
         skillId,
         messageHistoryLength: messageHistory?.length || 0,
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini',
         enrichedContext,
         contextDataSize: enrichedContextData ? enrichedContextData.systemPromptAddition.length : 0
       },
