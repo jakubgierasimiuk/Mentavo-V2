@@ -1,6 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
+import { buildGADIEPrompt, buildLegacyPrompt, type GADIEContext } from './gadie-prompt.ts'
+import { buildLightweightContext } from './lightweight-context.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -874,7 +876,7 @@ Odpowiadaj po polsku i bądź zachęcający!`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: conversationMessages,
         max_completion_tokens: 2000,
       }),
@@ -1251,10 +1253,23 @@ async function handleChat(req: Request): Promise<Response> {
     //   });
     // }
 
-    // Build enriched educational context if enabled
-    let enrichedContextData = null;
-    if (enrichedContext && userId && supabaseClient) {
-      console.log('Building educational context for:', { userId, skillId, sessionId, interactionType: messageHistory?.length > 0 ? 'ongoing' : 'initial' });
+    // Build educational context based on feature flags
+    let educationalContext: string | null = null;
+    
+    // Feature flag: Use lightweight context (misconceptions + skill progress)
+    const useLightweightContext = Deno.env.get('USE_LIGHTWEIGHT_CONTEXT') === 'true';
+    
+    if (useLightweightContext && userId && supabaseClient) {
+      console.log('Building lightweight educational context for:', { userId, skillId });
+      educationalContext = await buildLightweightContext({
+        userId,
+        skillId,
+        supabaseClient
+      });
+      console.log('Lightweight context built:', !!educationalContext);
+    } else if (enrichedContext && userId && supabaseClient) {
+      // Full enriched context (original implementation)
+      console.log('Building full enriched educational context for:', { userId, skillId, sessionId, interactionType: messageHistory?.length > 0 ? 'ongoing' : 'initial' });
       
       // If no skillId provided, try to get from recent sessions
       let contextSkillId = skillId;
@@ -1272,16 +1287,17 @@ async function handleChat(req: Request): Promise<Response> {
         console.log('No skillId provided, using from recent session:', contextSkillId);
       }
       
-      enrichedContextData = await buildEducationalContext({
+      const enrichedContextData = await buildEducationalContext({
         userId,
         skillId: contextSkillId,
         sessionId,
         supabaseClient,
         interactionType: messageHistory?.length > 0 ? 'ongoing' : 'initial'
       });
-      console.log('Enriched context built:', !!enrichedContextData);
+      
       if (enrichedContextData) {
-        console.log('Context length:', enrichedContextData.systemPromptAddition.length);
+        educationalContext = enrichedContextData.systemPromptAddition;
+        console.log('Full enriched context built, length:', educationalContext.length);
       }
     }
 
@@ -1300,72 +1316,32 @@ async function handleChat(req: Request): Promise<Response> {
     const messageCount = messageHistory ? messageHistory.length : 0;
     const needsCalibrationReminder = messageCount > 0 && messageCount % 3 === 0;
 
-    // Main Socratic tutoring system prompt for high school students
-    let systemPrompt = `Jesteś korepetytorem matematyki dla licealistów. Używasz METODY SOKRATEJSKIEJ - prowadzisz ucznia pytaniami, nie wykładasz teorii od razu.
+    // Feature flag: Use GADIE structured prompt or legacy prompt
+    const useGADIE = Deno.env.get('USE_GADIE_PROMPT') === 'true';
+    
+    const promptContext: GADIEContext = {
+      skillName,
+      isFirstContact,
+      isHintRequest,
+      needsCalibrationReminder,
+      messageCount
+    };
+    
+    // Build system prompt using selected strategy
+    let systemPrompt = useGADIE 
+      ? buildGADIEPrompt(promptContext)
+      : buildLegacyPrompt(promptContext);
+    
+    console.log(`Using ${useGADIE ? 'GADIE' : 'Legacy'} prompt system`);
 
-KLUCZOWE ZASADY:
-1. KRÓTKIE ODPOWIEDZI: Maksymalnie 150 słów + 1 konkretne pytanie na końcu
-2. KROK PO KROKU: Nie załatwiaj wszystkiego "na raz" - jeden problem/zagadnienie naraz  
-3. PYTAJ, NIE WYKŁADAJ: Zamiast podawać wzory, zapytaj co uczeń wie o danym zagadnieniu
-4. JĘZYK LICEALNY: Dostosuj słownictwo do poziomu liceum - unikaj uniwersyteckiego żargonu
+    // Note: Special handling (first contact, hint request, etc.) is now built into the prompt functions
 
-FORMATOWANIE:
-- Krótkie akapity (max 2-3 zdania każdy)
-- Wzory matematyczne w prostej formie z wyjaśnieniami
-- Użyj emoji 😊 dla zachęty, ⚠️ dla ważnych rzeczy
-- Nigdy nie pisz długich bloków tekstu bez przerw
-
-SYMBOLE MATEMATYCZNE - ZAWSZE WYJAŚNIAJ:
-- d/dx = "pochodna funkcji względem x"
-- f'(x) = "pochodna funkcji f od x" 
-- f(x) = "funkcja f od x" lub "f od iksa"
-- x^n = "x do potęgi n"
-- Gdy używasz skomplikowanych symboli, od razu je tłumacz
-
-STRATEGIA ODPOWIEDZI:
-1. Sprawdź co uczeń już wie
-2. Zadaj pytanie prowadzące do rozwiązania  
-3. Poczekaj na odpowiedź przed podaniem kolejnego kroku
-4. Jeśli uczeń nie rozumie - uprość i zmień podejście
-
-PRZYKŁAD DOBREJ ODPOWIEDZI:
-"Widzę, że masz problem z pochodnymi! 😊 
-Zanim przejdziemy do reguły łańcuchowej, powiedz mi - czy wiesz co to znaczy "pochodna funkcji"? 
-Co dzieje się z funkcją gdy liczysz jej pochodną?"
-
-    ${skillId ? `\nUMIEJĘTNOŚĆ: ${skillName} - dostosuj wszystkie pytania i przykłady do tej konkretnej umiejętności.` : ''}`;
-
-    // Special handling for different interaction types
-    if (isFirstContact) {
-      systemPrompt += `\n\n⚠️ PIERWSZY KONTAKT - KALIBRACJA POTRZEBNA:
-Na początku dodaj krótką wiadomość: "😊 Cześć! Jestem tu by Ci pomóc z matematyką. Jeśli czegoś nie rozumiesz w moich odpowiedziach - napisz od razu! Mogę wyjaśnić prościej lub inaczej. Dostosowuję się do Twojego tempa nauki."`;
-    }
-
-    if (isHintRequest) {
-      systemPrompt += `\n\n⚠️ PROŚBA O PODPOWIEDŹ:
-Użytkownik prosi o pomoc. Odwołaj się dokładnie do problemu który już wcześniej omawialiście w tej rozmowie. NIE wymyślaj nowego przykładu - użyj tego samego!`;
-    }
-
-    if (needsCalibrationReminder) {
-      systemPrompt += `\n\n⚠️ PRZYPOMNIENIE O KALIBRACJI:
-Na końcu odpowiedzi dodaj: "😊 Przypomnę - jeśli coś jest zbyt trudne, zbyt techniczne lub jest tego za dużo na raz, napisz mi! Jestem tu by dostosować się do Twojego stylu nauki."`;
-    }
-
-    // Add mathematical symbol processing note
-    systemPrompt += `\n\n⚠️ WAŻNE - SYMBOLE MATEMATYCZNE:
-Gdy napiszesz skomplikowany symbol (jak d/dx, f'(x), x^n), od razu go wytłumacz w prostych słowach.
-Przykład: "d/dx (to znaczy: pochodna względem x)" lub "f'(x) (czyli pochodna funkcji f od x)"`;
-
-    // Limit response length strictly 
-    systemPrompt += `\n\n⚠️ LIMIT DŁUGOŚCI ODPOWIEDZI:
-MAKSYMALNIE 150 słów + JEDNO pytanie na końcu. NIGDY więcej! Jeśli musisz więcej wyjaśnić - zrób to w kolejnej wymianie, nie w jednej długiej odpowiedzi.`;
-
-    // Add enriched context if enabled and available
-    if (enrichedContextData) {
-      systemPrompt += '\n\n' + enrichedContextData.systemPromptAddition;
-      console.log('Added enriched context to system prompt, length:', enrichedContextData.systemPromptAddition.length);
+    // Add educational context if available
+    if (educationalContext) {
+      systemPrompt += educationalContext;
+      console.log('Added educational context to system prompt, length:', educationalContext.length);
     } else {
-      // Fallback to basic session summary if enriched context is disabled
+      // Fallback to basic session summary if no educational context
       if (sessionId && supabaseClient) {
         try {
           const { data: sessionData } = await supabaseClient
@@ -1375,7 +1351,7 @@ MAKSYMALNIE 150 słów + JEDNO pytanie na końcu. NIGDY więcej! Jeśli musisz w
             .single();
           
           if (sessionData?.summary_compact) {
-            systemPrompt += ` Kontekst z poprzednich sesji: ${sessionData.summary_compact}`;
+            systemPrompt += `\n\nKontekst z poprzednich sesji: ${sessionData.summary_compact}`;
           }
         } catch (error) {
           console.log('No session summary available');
@@ -1413,7 +1389,7 @@ MAKSYMALNIE 150 słów + JEDNO pytanie na końcu. NIGDY więcej! Jeśli musisz w
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: conversationMessages,
         max_completion_tokens: 2000,
       }),
