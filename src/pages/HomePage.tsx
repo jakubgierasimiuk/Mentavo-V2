@@ -75,50 +75,9 @@ const HomePage = () => {
     }
   };
 
-  // Show landing page for non-authenticated users
-  if (!loading && !user) {
-    const landingJsonLd = {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      name: "AI Tutor Matematyki – Najlepszy nauczyciel matematyki online",
-      description: "Ucz się matematyki z AI Tutorem 24/7. Dopasowane lekcje, quizy i pełna podstawa programowa. Rozpocznij darmowy okres próbny.",
-      offers: {
-        "@type": "Offer",
-        price: "49.99",
-        priceCurrency: "PLN",
-        description: "Miesięczny dostęp do AI Tutora Matematyki"
-      }
-    } as const;
+  // REMOVED: Old landing page logic - now showing new dashboard for everyone
 
-    return (
-      <>
-        <Seo
-          title="AI Tutor Matematyki – Najlepszy nauczyciel matematyki online"
-          description="Ucz się matematyki z AI Tutorem 24/7. Dopasowane lekcje, quizy i pełna podstawa programowa liceum. Darmowy okres próbny 7 dni."
-          jsonLd={landingJsonLd}
-        />
-        <div className="min-h-screen bg-background">
-          <Navigation />
-          <LandingPage />
-        </div>
-      </>
-    );
-  }
-
-  // Redirect to onboarding if not completed
-  if (!loading && user && profile && !profile.onboarding_completed) {
-    window.location.href = '/onboarding/welcome';
-    return null;
-  }
-
-  // Show loading while checking profile
-  if (loading || (user && !profile)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  // REMOVED: Onboarding redirect and loading screen - showing dashboard immediately
 
   // Show enhanced dashboard for authenticated users
   const dashboardJsonLd = {

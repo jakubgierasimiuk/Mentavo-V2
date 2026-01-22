@@ -169,7 +169,7 @@ const App = () => (
             <ReferralBootstrap />
             <CurriculumSeeder />
             <Routes>
-            <Route path="/" element={<NewLandingPage />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/app" element={
               <AuthenticatedLayout>
                 <DashboardPage />
